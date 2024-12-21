@@ -1,6 +1,7 @@
 package com.landomen.composenavigationdeeplinks
 
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -24,15 +25,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.navArgument
 import androidx.navigation.navDeepLink
+import androidx.navigation.toRoute
 import com.landomen.composenavigationdeeplinks.ui.theme.ComposeNavigationDeeplinksTheme
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 
 private const val DEEPLINK_BASE = "https://deeplink.sample.com"
 
@@ -46,59 +47,36 @@ class MainActivity : ComponentActivity() {
 
                 NavHost(
                     navController = navController,
-                    startDestination = Destinations.Input.route,
+                    startDestination = Destinations.Input,
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    composable(
-                        Destinations.Input.route,
+                    composable<Destinations.Input>(
                         deepLinks = listOf(
-                            navDeepLink {
+                            navDeepLink<Destinations.Input>(basePath = "${DEEPLINK_BASE}/input")
+                            /*navDeepLink {
                                 uriPattern = "${DEEPLINK_BASE}/input"
-                            },
+                            },*/
                         ),
                     ) {
                         InputScreen(onNextScreenClick = { firstName, lastName, age ->
-                            navController.navigate(Destinations.Result.route + "/$firstName/$lastName?age=$age")
+                            navController.navigate(Destinations.Result(firstName, lastName, age))
                         })
                     }
-                    composable(
-                        route = Destinations.Result.routeWithArguments,
+                    composable<Destinations.Result>(
                         deepLinks = listOf(
-                            navDeepLink { uriPattern = "${DEEPLINK_BASE}/result/{lastName}/{firstName}?age={age}" },
-                        ),
-                        arguments = listOf(
-                            navArgument("firstName"){
-                                type = NavType.StringType
-                            },
-                            navArgument("lastName"){
-                                type = NavType.StringType
-                            },
-                            navArgument("age"){
-                                type = NavType.IntType
-                            }
+                            navDeepLink<Destinations.Result>(basePath = "${DEEPLINK_BASE}/result")
                         )
-                    ) {
+                            /*navDeepLink {
+                                uriPattern =
+                                    "${DEEPLINK_BASE}/result/{lastName}/{firstName}?age={age}"
+                            },*/
+                    ) { backStackEntry ->
+                        Log.e("NEKI", "ResultScreen: $backStackEntry")
+                        val backStackEntryRoute = backStackEntry.toRoute<Destinations.Result>()
                         ResultScreen(
-                            firstName = it.arguments?.getString("firstName"),
-                            lastName = it.arguments?.getString("lastName"),
-                            age = it.arguments?.getInt("age"),
-                            onNextScreenClick = {
-                                navController.navigate(Destinations.Third.route)
-                            },
-                            onPreviousScreenClick = {
-                                navController.popBackStack()
-                            }
-                        )
-                    }
-                    composable(
-                        Destinations.Third.route,
-                        deepLinks = listOf(
-                            navDeepLink {
-                                uriPattern = "https://deeplink.sample.com/third"
-                            },
-                        ),
-                    ) {
-                        ThirdScreen(
+                            firstName = backStackEntryRoute.firstName,
+                            lastName = backStackEntryRoute.lastName,
+                            age = backStackEntryRoute.age,
                             onPreviousScreenClick = {
                                 navController.popBackStack()
                             }
@@ -162,7 +140,6 @@ private fun ResultScreen(
     firstName: String?,
     lastName: String?,
     age: Int?,
-    onNextScreenClick: () -> Unit,
     onPreviousScreenClick: () -> Unit,
 ) {
     Column(
@@ -195,56 +172,24 @@ private fun ResultScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        Row {
-            Button(onClick = onPreviousScreenClick) {
-                Text(text = "Go to previous screen")
-            }
-            Button(onClick = onNextScreenClick) {
-                Text(text = "Go to next screen")
-            }
-        }
-
-    }
-}
-
-@Composable
-private fun ThirdScreen(
-    onPreviousScreenClick: () -> Unit,
-) {
-    Column(
-        modifier = Modifier.fillMaxSize(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Text(text = "Third Screen")
-
-        Spacer(modifier = Modifier.height(16.dp))
-
         Button(onClick = onPreviousScreenClick) {
-            Text(text = "Go to previous screen")
+            Text(text = "Back to input")
         }
     }
 }
 
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
+sealed class Destinations {
 
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    ComposeNavigationDeeplinksTheme {
-        Greeting("Android")
-    }
-}
+    @Serializable
+    data object Input : Destinations()
 
-sealed class Destinations(val route: String, val routeWithArguments: String) {
-
-    data object Input : Destinations("input", "input")
-    data object Result : Destinations("result", "result/{firstName}/{lastName}?age={age}")
-    data object Third : Destinations("third", "third")
+    @Serializable
+    data class Result(
+        @SerialName("firstName")
+        val firstName: String?,
+        @SerialName("lastName")
+        val lastName: String?,
+        // need to be optional or have a default value to be an argument and not a path parameter
+        val age: Int = 0,
+    ) : Destinations()
 }
