@@ -1,7 +1,6 @@
 package com.landomen.composenavigationdeeplinks
 
 import android.os.Bundle
-import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -13,11 +12,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -50,14 +49,7 @@ class MainActivity : ComponentActivity() {
                     startDestination = Destinations.Input,
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    composable<Destinations.Input>(
-                        deepLinks = listOf(
-                            navDeepLink<Destinations.Input>(basePath = "${DEEPLINK_BASE}/input")
-                            /*navDeepLink {
-                                uriPattern = "${DEEPLINK_BASE}/input"
-                            },*/
-                        ),
-                    ) {
+                    composable<Destinations.Input> {
                         InputScreen(onNextScreenClick = { firstName, lastName, age ->
                             navController.navigate(Destinations.Result(firstName, lastName, age))
                         })
@@ -66,12 +58,7 @@ class MainActivity : ComponentActivity() {
                         deepLinks = listOf(
                             navDeepLink<Destinations.Result>(basePath = "${DEEPLINK_BASE}/result")
                         )
-                            /*navDeepLink {
-                                uriPattern =
-                                    "${DEEPLINK_BASE}/result/{lastName}/{firstName}?age={age}"
-                            },*/
                     ) { backStackEntry ->
-                        Log.e("NEKI", "ResultScreen: $backStackEntry")
                         val backStackEntryRoute = backStackEntry.toRoute<Destinations.Result>()
                         ResultScreen(
                             firstName = backStackEntryRoute.firstName,
@@ -98,14 +85,16 @@ private fun InputScreen(
 ) {
     var firstName by remember { mutableStateOf("") }
     var lastName by remember { mutableStateOf("") }
-    var age by remember { mutableIntStateOf(0) }
+    var age by remember { mutableStateOf("") }
 
     Column(
         modifier = Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Text(text = "First Screen")
+        Text(text = "Input Screen", style = MaterialTheme.typography.bodyLarge)
+
+        Spacer(modifier = Modifier.height(16.dp))
 
         TextField(
             value = firstName,
@@ -120,7 +109,7 @@ private fun InputScreen(
 
         TextField(
             value = age.toString(),
-            onValueChange = { age = it.toIntOrNull() ?: 0 },
+            onValueChange = { age = it },
             keyboardOptions = KeyboardOptions.Default.copy(
                 keyboardType = KeyboardType.Number
             ),
@@ -129,7 +118,7 @@ private fun InputScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        Button(onClick = { onNextScreenClick(firstName, lastName, age) }) {
+        Button(onClick = { onNextScreenClick(firstName, lastName, age.toIntOrNull() ?: 0) }) {
             Text(text = "Submit")
         }
     }
@@ -147,7 +136,10 @@ private fun ResultScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Text(text = "Second Screen")
+        Text(text = "Result Screen", style = MaterialTheme.typography.bodyLarge)
+
+        Spacer(modifier = Modifier.height(16.dp))
+
         Row {
             Text(text = "Received first name: ")
             Text(
@@ -185,10 +177,10 @@ sealed class Destinations {
 
     @Serializable
     data class Result(
-        @SerialName("firstName")
-        val firstName: String?,
         @SerialName("lastName")
-        val lastName: String?,
+        val lastName: String,
+        @SerialName("firstName")
+        val firstName: String,
         // need to be optional or have a default value to be an argument and not a path parameter
         val age: Int = 0,
     ) : Destinations()
